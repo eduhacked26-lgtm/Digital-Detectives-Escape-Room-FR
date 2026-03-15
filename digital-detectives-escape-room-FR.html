@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Détectives Numériques – Évasion du Hack 🇫🇷</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#030a0e;--surface:#071520;--panel:#0a1e2d;--border:#0e4a6e;--glow:#00d4ff;--glow2:#00ff9d;--glow3:#ff3e6c;--glow4:#ffc400;--text:#c8eaf5;--text-dim:#4a7a96;--red:#ff3e6c;--green:#00ff9d;--yellow:#ffc400;--blue:#00d4ff;--purple:#b06cff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Exo 2',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);pointer-events:none;z-index:9999}
+#matrixCanvas{position:fixed;inset:0;z-index:0;opacity:.07;pointer-events:none}
+@keyframes glitch{0%,100%{text-shadow:2px 0 var(--glow3),-2px 0 var(--glow)}25%{text-shadow:-3px 0 var(--glow3),3px 0 var(--glow);transform:skewX(-2deg)}50%{text-shadow:3px 2px var(--glow3),-3px -2px var(--glow)}75%{text-shadow:-2px -1px var(--glow3),2px 1px var(--glow);transform:skewX(1deg)}}
+@keyframes flicker{0%,100%{opacity:1}92%{opacity:1}93%{opacity:.6}94%{opacity:1}97%{opacity:.8}98%{opacity:1}}
+@keyframes pulse{0%,100%{box-shadow:0 0 10px var(--glow)}50%{box-shadow:0 0 30px var(--glow),0 0 60px var(--glow)}}
+@keyframes pulseRed{0%,100%{box-shadow:0 0 10px var(--red)}50%{box-shadow:0 0 30px var(--red),0 0 60px var(--red)}}
+@keyframes scanline{0%{top:-5%}100%{top:105%}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bootIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+@keyframes successPulse{0%{transform:scale(1)}50%{transform:scale(1.04)}100%{transform:scale(1)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+#bootScreen{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;animation:flicker 4s infinite}
+.boot-logo{font-family:'Orbitron',monospace;font-size:clamp(1.8rem,5vw,3.5rem);font-weight:900;color:var(--glow);animation:glitch 3s infinite;letter-spacing:4px;text-align:center;margin-bottom:8px}
+.boot-sub{font-family:'Share Tech Mono',monospace;color:var(--glow3);font-size:clamp(.7rem,2vw,1rem);letter-spacing:6px;text-transform:uppercase;margin-bottom:40px}
+.terminal-box{background:#000;border:1px solid var(--glow);border-radius:4px;padding:24px 28px;max-width:560px;width:100%;font-family:'Share Tech Mono',monospace;font-size:.85rem;color:var(--green);line-height:2;margin-bottom:32px;position:relative;overflow:hidden}
+.terminal-box::before{content:'';position:absolute;width:100%;height:3px;background:linear-gradient(90deg,transparent,var(--glow),transparent);top:-3px;left:0;animation:scanline 2s linear infinite}
+.t-line{opacity:0}.t-line.visible{animation:fadeUp .3s forwards}
+.t-line .t-err{color:var(--red)}.t-line .t-warn{color:var(--yellow)}.t-line .t-ok{color:var(--green)}
+.cursor{display:inline-block;animation:blink 1s infinite}
+.team-setup{max-width:480px;width:100%;text-align:center}
+.setup-label{font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--text-dim);letter-spacing:3px;text-transform:uppercase;margin-bottom:12px}
+.team-input{width:100%;background:#000;border:1px solid var(--border);border-radius:4px;padding:12px 16px;color:var(--glow);font-family:'Share Tech Mono',monospace;font-size:1rem;text-align:center;margin-bottom:10px;transition:border-color .2s,box-shadow .2s}
+.team-input:focus{outline:none;border-color:var(--glow);box-shadow:0 0 12px rgba(0,212,255,.3)}
+.team-count-row{display:flex;gap:8px;justify-content:center;margin-bottom:16px}
+.tc-btn{width:52px;height:52px;background:#000;border:1px solid var(--border);border-radius:4px;color:var(--text-dim);font-family:'Orbitron',monospace;font-size:1.3rem;cursor:pointer;transition:all .2s}
+.tc-btn:hover,.tc-btn.sel{border-color:var(--glow);color:var(--glow);box-shadow:0 0 12px rgba(0,212,255,.3)}
+.btn-hack{font-family:'Orbitron',monospace;font-size:.85rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;background:transparent;border:2px solid var(--glow);color:var(--glow);padding:14px 36px;border-radius:4px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.btn-hack::before{content:'';position:absolute;inset:0;background:var(--glow);transform:scaleX(0);transform-origin:left;transition:transform .2s;z-index:-1}
+.btn-hack:hover{color:#000;box-shadow:0 0 20px var(--glow)}.btn-hack:hover::before{transform:scaleX(1)}
+.btn-hack.danger{border-color:var(--red);color:var(--red)}.btn-hack.danger:hover{color:#fff;box-shadow:0 0 20px var(--red)}.btn-hack.danger::before{background:var(--red)}
+.btn-hack.success-btn{border-color:var(--green);color:var(--green)}.btn-hack.success-btn:hover{color:#000;box-shadow:0 0 20px var(--green)}.btn-hack.success-btn::before{background:var(--green)}
+#gameContainer{position:relative;z-index:1;display:none;min-height:100vh;flex-direction:column}
+.hud{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;background:rgba(7,21,32,.95);border-bottom:1px solid var(--border);flex-wrap:wrap;gap:12px;position:sticky;top:0;z-index:50;backdrop-filter:blur(4px)}
+.hud-title{font-family:'Orbitron',monospace;font-size:clamp(.75rem,2vw,1rem);font-weight:700;color:var(--glow);letter-spacing:2px;animation:glitch 6s infinite}
+.hud-timer{font-family:'Share Tech Mono',monospace;font-size:clamp(1.2rem,3vw,1.8rem);color:var(--yellow);letter-spacing:3px}
+.hud-timer.danger{color:var(--red);animation:pulseRed 1s infinite}
+.hud-teams{display:flex;gap:10px;flex-wrap:wrap}
+.hud-team{font-family:'Share Tech Mono',monospace;font-size:.75rem;padding:4px 10px;border:1px solid var(--border);border-radius:2px;color:var(--text-dim);transition:all .3s}
+.hud-team.active{border-color:var(--glow);color:var(--glow);box-shadow:0 0 8px rgba(0,212,255,.3)}
+.room{display:none;flex:1;padding:24px 20px;max-width:860px;margin:0 auto;width:100%;animation:bootIn .4s ease}
+.room.active{display:block}
+.room-number{font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--text-dim);letter-spacing:4px;text-transform:uppercase;margin-bottom:4px}
+.room-title{font-family:'Orbitron',monospace;font-size:clamp(1.3rem,4vw,2rem);font-weight:700;margin-bottom:8px}
+.room-story{font-family:'Share Tech Mono',monospace;font-size:.85rem;color:var(--text-dim);line-height:1.7;border-left:3px solid var(--border);padding-left:14px;margin-bottom:20px}
+.room-progress{display:flex;gap:6px;margin-bottom:24px;align-items:center}
+.prog-dot{width:28px;height:4px;background:var(--border);border-radius:2px;transition:background .4s,box-shadow .4s}
+.prog-dot.done{background:var(--green);box-shadow:0 0 6px var(--green)}
+.prog-dot.current{background:var(--glow);box-shadow:0 0 6px var(--glow);animation:pulse 1.5s infinite}
+.prog-label{font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--text-dim);margin-left:8px}
+.puzzle-card{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:24px;margin-bottom:20px;position:relative;overflow:hidden;transition:border-color .3s}
+.puzzle-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.puzzle-card.blue::before{background:linear-gradient(90deg,transparent,var(--blue),transparent)}
+.puzzle-card.red-theme::before{background:linear-gradient(90deg,transparent,var(--red),transparent)}
+.puzzle-card.green-theme::before{background:linear-gradient(90deg,transparent,var(--green),transparent)}
+.puzzle-card.purple-theme::before{background:linear-gradient(90deg,transparent,var(--purple),transparent)}
+.puzzle-card.yellow-theme::before{background:linear-gradient(90deg,transparent,var(--yellow),transparent)}
+.puzzle-card.solved{border-color:var(--green);animation:successPulse .4s}
+.puzzle-card.solved::before{background:linear-gradient(90deg,transparent,var(--green),transparent)}
+.puzzle-card.error-shake{animation:shake .4s;border-color:var(--red)}
+.puzzle-badge{display:inline-flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:.65rem;letter-spacing:2px;text-transform:uppercase;padding:3px 10px;border-radius:2px;margin-bottom:14px}
+.puzzle-q{font-size:1rem;font-weight:600;line-height:1.5;margin-bottom:18px;color:#e0f0fa}
+.puzzle-hint{font-family:'Share Tech Mono',monospace;font-size:.75rem;color:var(--text-dim);margin-bottom:14px;font-style:italic}
+.mc-options{display:flex;flex-direction:column;gap:8px}
+.mc-opt{background:#000;border:1px solid var(--border);border-radius:4px;padding:11px 16px;color:var(--text);font-family:'Exo 2',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;text-align:left;transition:all .15s;display:flex;align-items:center;gap:10px}
+.mc-opt:hover:not(:disabled){border-color:var(--glow);color:var(--glow);background:rgba(0,212,255,.05)}
+.mc-opt.correct{border-color:var(--green);color:var(--green);background:rgba(0,255,157,.08)}
+.mc-opt.wrong{border-color:var(--red);color:var(--red);background:rgba(255,62,108,.08)}
+.mc-key{font-family:'Share Tech Mono',monospace;font-size:.75rem;width:24px;height:24px;border:1px solid currentColor;border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:.7}
+.code-entry{display:flex;gap:8px;flex-wrap:wrap}
+.code-input{flex:1;min-width:160px;background:#000;border:1px solid var(--border);border-radius:4px;padding:12px 16px;color:var(--glow);font-family:'Share Tech Mono',monospace;font-size:1.1rem;letter-spacing:4px;text-transform:uppercase;transition:border-color .2s,box-shadow .2s}
+.code-input:focus{outline:none;border-color:var(--glow);box-shadow:0 0 12px rgba(0,212,255,.2)}
+.code-input.correct{border-color:var(--green);color:var(--green);box-shadow:0 0 12px rgba(0,255,157,.3)}
+.code-input.wrong{border-color:var(--red);color:var(--red);animation:shake .3s}
+.submit-code{font-family:'Share Tech Mono',monospace;font-size:.8rem;letter-spacing:2px;background:transparent;border:1px solid var(--glow);color:var(--glow);padding:12px 20px;border-radius:4px;cursor:pointer;transition:all .2s;text-transform:uppercase}
+.submit-code:hover{background:var(--glow);color:#000;box-shadow:0 0 12px var(--glow)}
+.feedback{display:none;margin-top:12px;padding:10px 14px;border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:.8rem;line-height:1.5;border-left:3px solid}
+.feedback.show{display:block;animation:fadeUp .3s}
+.feedback.ok{border-color:var(--green);background:rgba(0,255,157,.06);color:var(--green)}
+.feedback.fail{border-color:var(--red);background:rgba(255,62,108,.06);color:#ff8faa}
+.solve-badge{display:none;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:.8rem;color:var(--green);margin-top:12px}
+.solve-badge.show{display:flex;animation:fadeUp .3s}
+.room-nav{display:flex;justify-content:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)}
+.attempts{font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--text-dim);margin-bottom:10px}
+.attempt-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--border);margin-right:4px;transition:all .3s}
+.attempt-dot.used{background:var(--red);box-shadow:0 0 4px var(--red)}
+#winScreen{display:none;position:fixed;inset:0;background:var(--bg);z-index:600;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center}
+#winScreen.show{display:flex;animation:bootIn .5s}
+.win-glitch{font-family:'Orbitron',monospace;font-size:clamp(2rem,7vw,4.5rem);font-weight:900;color:var(--green);animation:glitch 2s infinite;margin-bottom:8px}
+.win-time{font-family:'Share Tech Mono',monospace;font-size:1.2rem;color:var(--yellow);margin-bottom:24px}
+.pledge-terminal{background:#000;border:1px solid var(--green);border-radius:4px;padding:24px 28px;max-width:520px;width:100%;text-align:left;margin-bottom:28px;box-shadow:0 0 30px rgba(0,255,157,.15)}
+.pledge-terminal .pt-title{font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--green);letter-spacing:3px;margin-bottom:14px;text-transform:uppercase}
+.pledge-terminal p{font-family:'Share Tech Mono',monospace;font-size:.85rem;color:var(--text-dim);line-height:1.8;margin-bottom:16px}
+.pledge-input{width:100%;background:#000;border:none;border-bottom:1px solid var(--green);padding:8px 0;color:var(--green);font-family:'Share Tech Mono',monospace;font-size:1rem;letter-spacing:2px}
+.pledge-input:focus{outline:none}
+.team-scores{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:24px}
+.score-card{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:12px 20px;font-family:'Share Tech Mono',monospace;font-size:.85rem;color:var(--text-dim)}
+.score-card .sc-name{color:var(--glow);margin-bottom:4px;font-size:.75rem;letter-spacing:2px}
+.score-card .sc-score{font-size:1.3rem;color:var(--yellow)}
+#gameOverScreen{display:none;position:fixed;inset:0;background:var(--bg);z-index:600;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center}
+#gameOverScreen.show{display:flex;animation:bootIn .5s}
+.gameover-title{font-family:'Orbitron',monospace;font-size:clamp(2rem,7vw,4rem);font-weight:900;color:var(--red);animation:glitch 1.5s infinite;margin-bottom:8px}
+.corner-deco{position:absolute;width:20px;height:20px;border-color:var(--border);border-style:solid;opacity:.5}
+.corner-deco.tl{top:6px;left:6px;border-width:1px 0 0 1px}
+.corner-deco.tr{top:6px;right:6px;border-width:1px 1px 0 0}
+.corner-deco.bl{bottom:6px;left:6px;border-width:0 0 1px 1px}
+.corner-deco.br{bottom:6px;right:6px;border-width:0 1px 1px 0}
+/* Sound toggle */
+.sound-toggle{position:fixed;bottom:16px;right:16px;z-index:1000;background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:8px 14px;font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--text-dim);cursor:pointer;transition:all .2s;letter-spacing:2px}
+.sound-toggle:hover{border-color:var(--glow);color:var(--glow)}
+@media(max-width:480px){.hud{padding:10px 14px}.puzzle-card{padding:16px}.room{padding:16px 14px}.code-entry{flex-direction:column}.code-input{min-width:100%}}
+
+.btn-reshuffle{font-family:'Orbitron',monospace;font-size:.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:transparent;border:1px solid var(--yellow);color:var(--yellow);padding:6px 14px;border-radius:4px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-reshuffle:hover{background:var(--yellow);color:#000;box-shadow:0 0 12px var(--yellow)}
+.reshuffle-flash{animation:reshuffleFlash .6s ease}
+@keyframes reshuffleFlash{0%{opacity:1}30%{opacity:0}60%{opacity:.5}100%{opacity:1}}
+</style>
+</head>
+<body>
+<canvas id="matrixCanvas"></canvas>
+<button class="sound-toggle" id="sndBtn" onclick="toggleSound()">🔊 SON ACTIVÉ</button>
+
+<div id="bootScreen">
+  <div class="boot-logo">DÉTECTIVES NUMÉRIQUES</div>
+  <div class="boot-sub">// ÉVASION DU HACK //</div>
+  <div class="terminal-box" id="terminalBox">
+    <div class="t-line" id="tl0">[ SYS ] Initialisation de la connexion sécurisée...</div>
+    <div class="t-line" id="tl1">[ ERR ] <span class="t-err">⚠ INTRUSION DÉTECTÉE — PARE-FEU COMPROMIS</span></div>
+    <div class="t-line" id="tl2">[ WARN ] <span class="t-warn">Tu es PIÉGÉ à l'intérieur du système.</span></div>
+    <div class="t-line" id="tl3">[ INFO ] 4 modules de sécurité doivent être restaurés.</div>
+    <div class="t-line" id="tl4">[ INFO ] Résous les énigmes. <span class="t-ok">Échappe-toi avant la fin du temps.</span></div>
+    <div class="t-line" id="tl5">[ INPUT ] Identifie ton/tes équipe(s) pour commencer... <span class="cursor">_</span></div>
+  </div>
+  <div class="team-setup" id="teamSetup" style="display:none">
+    <div class="setup-label">// Nombre d'équipes //</div>
+    <div class="team-count-row">
+      <button class="tc-btn sel" onclick="selectTC(1)">1</button>
+      <button class="tc-btn" onclick="selectTC(2)">2</button>
+      <button class="tc-btn" onclick="selectTC(3)">3</button>
+      <button class="tc-btn" onclick="selectTC(4)">4</button>
+    </div>
+    <div id="teamInputs"></div>
+    <button class="btn-hack" onclick="launchGame()" style="width:100%;margin-top:8px">▶ SE CONNECTER</button>
+  </div>
+</div>
+
+<div id="gameContainer">
+  <div class="hud">
+    <div class="hud-title">💻 ÉVASION DU HACK</div>
+    <div class="hud-timer" id="hudTimer">25:00</div>
+    <div class="hud-teams" id="hudTeams"></div>
+    <button class="btn-reshuffle" id="reshuffleBtn" onclick="reshuffleAll()" style="display:none">🔀 MÉLANGER</button>
+  </div>
+  <div class="room" id="room0">
+    <div class="room-header">
+      <div class="room-number">// MODULE 01 SUR 04 //</div>
+      <div class="room-title" style="color:var(--blue)">🔒 COFFRE DE CONFIDENTIALITÉ</div>
+      <div class="room-story">ALERTE : Le pirate a pénétré le Coffre de Confidentialité. Tes données personnelles sont exposées.<br>Restaure les protocoles de confidentialité. Trois mauvaises réponses = fuite de données !</div>
+    </div>
+    <div class="room-progress" id="prog0"></div>
+    <div id="puzzles0"></div>
+    <div class="room-nav"><button class="btn-hack success-btn" id="nav0" onclick="goRoom(1)" style="display:none">MODULE SUIVANT ▶</button></div>
+  </div>
+  <div class="room" id="room1">
+    <div class="room-header">
+      <div class="room-number">// MODULE 02 SUR 04 //</div>
+      <div class="room-title" style="color:var(--glow3)">💬 MOTEUR DU RESPECT</div>
+      <div class="room-story">ATTENTION : Le Moteur du Respect est corrompu. Des messages toxiques se propagent dans le réseau.<br>Identifie les bonnes réponses pour purger les données malveillantes.</div>
+    </div>
+    <div class="room-progress" id="prog1"></div>
+    <div id="puzzles1"></div>
+    <div class="room-nav"><button class="btn-hack success-btn" id="nav1" onclick="goRoom(2)" style="display:none">MODULE SUIVANT ▶</button></div>
+  </div>
+  <div class="room" id="room2">
+    <div class="room-header">
+      <div class="room-number">// MODULE 03 SUR 04 //</div>
+      <div class="room-title" style="color:var(--purple)">🧠 PROCESSEUR DE VÉRITÉ</div>
+      <div class="room-story">CRITIQUE : De fausses données ont infecté le Processeur de Vérité. La désinformation se propage.<br>Vérifie les sources et repère les fake news avant qu'elles se propagent.</div>
+    </div>
+    <div class="room-progress" id="prog2"></div>
+    <div id="puzzles2"></div>
+    <div class="room-nav"><button class="btn-hack success-btn" id="nav2" onclick="goRoom(3)" style="display:none">MODULE SUIVANT ▶</button></div>
+  </div>
+  <div class="room" id="room3">
+    <div class="room-header">
+      <div class="room-number">// MODULE 04 SUR 04 //</div>
+      <div class="room-title" style="color:var(--green)">🤖 NOYAU IA</div>
+      <div class="room-story">BARRIÈRE FINALE : Le Noyau IA est devenu incontrôlable. Réinitialise ses paramètres éthiques et entre le code de déverrouillage final pour t'échapper !</div>
+    </div>
+    <div class="room-progress" id="prog3"></div>
+    <div id="puzzles3"></div>
+    <div class="room-nav"><button class="btn-hack success-btn" id="nav3" onclick="triggerWin()" style="display:none">🔓 S'ÉCHAPPER DU SYSTÈME</button></div>
+  </div>
+</div>
+
+<div id="winScreen">
+  <div class="win-glitch">SYSTÈME RESTAURÉ</div>
+  <div style="font-family:'Share Tech Mono',monospace;font-size:.8rem;color:var(--text-dim);letter-spacing:3px;margin-bottom:8px">TU T'ES ÉCHAPPÉ DU HACK</div>
+  <div class="win-time" id="winTime"></div>
+  <div class="team-scores" id="winScores"></div>
+  <div class="pledge-terminal">
+    <div class="pt-title">// ENGAGEMENT NUMÉRIQUE //</div>
+    <p>Je promets de protéger ma vie privée, de respecter les autres en ligne,<br>de vérifier avant de partager et d'utiliser l'IA de manière éthique.</p>
+    <input class="pledge-input" type="text" placeholder="Tape ton nom pour signer l'engagement...">
+  </div>
+  <button class="btn-hack" onclick="location.reload()">↺ RECOMMENCER LA MISSION</button>
+</div>
+
+<div id="gameOverScreen">
+  <div class="gameover-title">TEMPS ÉCOULÉ</div>
+  <div style="font-family:'Share Tech Mono',monospace;color:var(--text-dim);margin-bottom:24px;font-size:.9rem">LE PIRATE A GAGNÉ — SYSTÈME TOTALEMENT COMPROMIS</div>
+  <div style="font-family:'Share Tech Mono',monospace;color:var(--text-dim);font-size:.8rem;max-width:400px;line-height:1.8;margin-bottom:28px">Ne te décourage pas ! Relis les conseils de sécurité et réessaie.<br>Chaque tentative fait de toi un meilleur Détective Numérique.</div>
+  <button class="btn-hack success-btn" onclick="location.reload()">↺ RÉESSAYER</button>
+</div>
+
+<script>
+
+const L = {
+  teamLabel:'EQUIPE',teamDefault:'Équipe',solved:'résolus',attempts:'Tentatives',
+  enterCode:'ENTRER LE CODE',submit:'VALIDER',moduleUnlocked:'MODULE DÉVERROUILLÉ — EN COURS',
+  completedIn:'Complété en'
+};
+
+
+const ROOMS = [
+  { color:'blue', puzzles:[
+    { id:'p0_0', type:'mc', theme:'blue', badge:'🔒 PROTOCOLE VIE PRIVÉE',
+      q:'ALERTE SYSTÈME : Un message demande votre mot de passe. Sous-routine de sécurité bloquée. Votre action ?',
+      hint:'// Réfléchis : qu\'est-ce qu\'on ne doit JAMAIS partager ? //',
+      opts:['Le transmettre à un contact de confiance','Ignorer + signaler à un adulte de confiance','Le publier publiquement'],
+      correct:1,
+      feedback_ok:'✓ CORRECT — Les mots de passe sont confidentiels. Ne les transmets jamais, même à des amis.',
+      feedback_fail:'✗ Les mots de passe sont ta première ligne de défense. Ne les partage JAMAIS. Signale toute demande suspecte.' },
+    { id:'p0_1', type:'code', theme:'blue', badge:'🔑 DÉCODEUR DE MOT DE PASSE',
+      q:'Le système a besoin d\'un mot de passe FORT pour reverrouiller le coffre. Lequel est le plus sécurisé ? Entre la lettre correcte : A, B ou C.',
+      hint:'// A: "motdepasse123"  |  B: "M@ng0#Ciel!72"  |  C: "monprenom2010" //',
+      code:'B',
+      feedback_ok:'✓ ACCÈS AUTORISÉ — Les mots de passe forts mélangent majuscules, minuscules, chiffres et symboles.',
+      feedback_fail:'✗ Cherche le mot de passe qui mélange symboles, chiffres et lettres sans info personnelle.' },
+    { id:'p0_2', type:'mc', theme:'blue', badge:'📷 ANALYSE DE DONNÉES',
+      q:'PHOTO INTERCEPTÉE. Le pirate cherche des données personnelles. Quelle photo est SÉCURISÉE à partager en ligne ?',
+      opts:['Photo montrant ta carte scolaire','Photo d\'un repas sans information personnelle','Photo avec ton adresse visible'],
+      correct:1,
+      feedback_ok:'✓ CORRECT — Les images sans données personnelles sont sécurisées. Vérifie toujours avant de poster.',
+      feedback_fail:'✗ Les cartes scolaires, adresses et infos perso dans les photos peuvent être exploitées. Réfléchis avant de partager !' }
+  ]},
+  { color:'red-theme', puzzles:[
+    { id:'p1_0', type:'mc', theme:'red-theme', badge:'💬 FILTRE RÉSEAU',
+      q:'MESSAGE TOXIQUE DÉTECTÉ dans le flux réseau. Un commentaire méchant sur un camarade apparaît. Quelle est la bonne réponse ?',
+      opts:['Amplifier le signal (J\'aime)','Signaler + soutenir le camarade','Rediffuser (Partager)'],
+      correct:1,
+      feedback_ok:'✓ PARE-FEU MIS À JOUR — Les défenseurs arrêtent le cyberharcèlement. Signale et soutiens, n\'amplifie pas.',
+      feedback_fail:'✗ Liker ou partager propage le mal. Signale toujours et soutiens la personne visée.' },
+    { id:'p1_1', type:'code', theme:'red-theme', badge:'🤝 CODE DU RESPECT',
+      q:'Seules les réponses RESPECTUEUSES déverrouillent le système. Tape OUI ou NON — Cette phrase est-elle respectueuse ? "Je ne suis pas d\'accord, mais je respecte ton opinion."',
+      hint:'// Évalue : ce message attaque-t-il la personne ou l\'idée ? //',
+      code:'OUI',
+      feedback_ok:'✓ VÉRIFIÉ — Être en désaccord avec respect est une compétence citoyenne numérique essentielle.',
+      feedback_fail:'✗ Relis bien. Ce message respecte-t-il la personne tout en étant en désaccord ? Tape OUI ou NON.' },
+    { id:'p1_2', type:'mc', theme:'red-theme', badge:'🚨 RÉPONSE AUX INCIDENTS',
+      q:'MENACE ENTRANTE : Un message agressif t\'est envoyé. Le système a besoin du protocole de réponse correct.',
+      opts:['Répondre avec la même agressivité','Faire une capture d\'écran + signaler à un adulte','Transférer sur des canaux publics'],
+      correct:1,
+      feedback_ok:'✓ PROTOCOLE EXÉCUTÉ — Documente les preuves, reste calme et signale. Ne riposte jamais en ligne.',
+      feedback_fail:'✗ Riposter ou partager aggrave les choses. Le bon protocole : capture d\'écran, signalement, demande d\'aide.' }
+  ]},
+  { color:'purple-theme', puzzles:[
+    { id:'p2_0', type:'mc', theme:'purple-theme', badge:'🔍 VÉRIFICATEUR DE SOURCES',
+      q:'FAUSSES DONNÉES ENTRANTES. Deux sources cherchent à écraser le Processeur de Vérité. Laquelle est fiable ?',
+      opts:['Publication anonyme sur les réseaux — sans auteur, sans date','Site d\'information officiel avec auteur nommé et date de publication'],
+      correct:1,
+      feedback_ok:'✓ SOURCE VÉRIFIÉE — Une information fiable a un auteur clair, une date et un éditeur crédible.',
+      feedback_fail:'✗ Vérifie toujours la source ! Les publications anonymes sans date sont à haut risque de désinformation.' },
+    { id:'p2_1', type:'code', theme:'purple-theme', badge:'📰 DÉTECTEUR DE FAKE NEWS',
+      q:'Lance le protocole VÉRIFIER. Entre le mot manquant : "Toujours vérifier la _____ avant de partager une info."',
+      hint:'// 6 lettres — D\'où vient l\'information ? //',
+      code:'SOURCE',
+      feedback_ok:'✓ FILTRE ACTIF — Toujours vérifier la SOURCE avant de partager. Arrête les fake news dès le départ.',
+      feedback_fail:'✗ La réponse est SOURCE. Vérifie l\'origine de l\'information avant de la partager.' },
+    { id:'p2_2', type:'mc', theme:'purple-theme', badge:'🎥 ANALYSE MÉDIA',
+      q:'VIDÉO SUSPECTE DÉTECTÉE. Une vidéo choquante de 30 secondes se propage rapidement. Quelle est l\'action intelligente ?',
+      opts:['La rediffuser immédiatement pour alerter','Pause — vérifier si c\'est réel avant d\'agir','Poster un commentaire en colère'],
+      correct:1,
+      feedback_ok:'✓ BONNE DÉCISION — Fais une pause avant de partager du contenu choquant. Vérifie, puis décide.',
+      feedback_fail:'✗ Réagir impulsivement propage la désinformation. Toujours FAIRE UNE PAUSE et vérifier d\'abord.' }
+  ]},
+  { color:'green-theme', puzzles:[
+    { id:'p3_0', type:'mc', theme:'green-theme', badge:'🤖 MODULE ÉTHIQUE IA',
+      q:'ALERTE IA HORS CONTRÔLE : Le noyau IA fait les devoirs des élèves tout seul. Quelle est la réinitialisation éthique ?',
+      opts:['Copier directement la réponse de l\'IA — c\'est plus rapide','Utiliser l\'IA pour apprendre, puis rédiger son propre travail','Laisser l\'IA gérer toutes les tâches scolaires'],
+      correct:1,
+      feedback_ok:'✓ ÉTHIQUE RESTAURÉE — L\'IA est un outil, pas un remplaçant. Utilise-la pour apprendre, pas pour tricher.',
+      feedback_fail:'✗ Copier les résultats de l\'IA, c\'est de la malhonnêteté académique. Utilise l\'IA pour comprendre, pas copier.' },
+    { id:'p3_1', type:'mc', theme:'green-theme', badge:'🚫 PROTECTION DES DONNÉES',
+      q:'CRITIQUE : L\'IA hors contrôle demande des données personnelles. Que ne faut-il JAMAIS entrer dans un système IA ?',
+      opts:['Tes livres et loisirs préférés','Ton adresse personnelle ou tes mots de passe','Tes matières scolaires'],
+      correct:1,
+      feedback_ok:'✓ DONNÉES PROTÉGÉES — Ne partage jamais de données personnelles sensibles avec les IA. Protège ton identité.',
+      feedback_fail:'✗ Les adresses, mots de passe et informations personnelles ne doivent JAMAIS être entrés dans des outils IA.' },
+    { id:'p3_2', type:'code', theme:'green-theme', badge:'🔓 DÉVERROUILLAGE FINAL',
+      q:'VERROU FINAL : Décode l\'indice : "L\'IA doit AIDER les humains, pas les nuire. On appelle ça l\'____ de l\'IA."',
+      hint:'// 7 lettres — le mot pour désigner les principes moraux appliqués à l\'IA //',
+      code:'ETHIQUE',
+      feedback_ok:'✓ DÉVERROUILLAGE ACCEPTÉ — L\'ÉTHIQUE de l\'IA signifie utiliser l\'intelligence artificielle de façon responsable. TU ES LIBRE !',
+      feedback_fail:'✗ La réponse est ETHIQUE — l\'étude du bien et du mal appliquée à l\'utilisation de l\'IA.' }
+  ]}
+];
+
+
+// ═══ MATRIX RAIN ═══
+const canvas=document.getElementById('matrixCanvas');
+const ctx=canvas.getContext('2d');
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+const cols=Math.floor(window.innerWidth/16);
+const drops=Array(cols).fill(1);
+const chars='01アイウエオカキクケコ#@$%&ABCDEFabcdef';
+function drawMatrix(){
+  ctx.fillStyle='rgba(3,10,14,0.05)';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#00ff9d';ctx.font='14px Share Tech Mono';
+  drops.forEach((y,i)=>{
+    const c=chars[Math.floor(Math.random()*chars.length)];
+    ctx.fillText(c,i*16,y*16);
+    if(y*16>canvas.height&&Math.random()>.975)drops[i]=0;
+    drops[i]++;
+  });
+}
+setInterval(drawMatrix,60);
+
+// ═══ AUDIO ENGINE (Web Audio API — no files needed) ═══
+let audioCtx=null;let soundOn=true;
+function getAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function playTone(freq,dur,type='sine',vol=0.3,fadeOut=true){
+  try{
+    const ac=getAudio();
+    const o=ac.createOscillator();const g=ac.createGain();
+    o.connect(g);g.connect(ac.destination);
+    o.type=type;o.frequency.setValueAtTime(freq,ac.currentTime);
+    g.gain.setValueAtTime(vol,ac.currentTime);
+    if(fadeOut)g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);
+    o.start(ac.currentTime);o.stop(ac.currentTime+dur);
+  }catch(e){}
+}
+function playNoise(dur,vol=0.15){
+  try{
+    const ac=getAudio();const buf=ac.createBuffer(1,ac.sampleRate*dur,ac.sampleRate);
+    const d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+    const src=ac.createBufferSource();src.buffer=buf;
+    const g=ac.createGain();g.gain.setValueAtTime(vol,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);
+    src.connect(g);g.connect(ac.destination);src.start();
+  }catch(e){}
+}
+function sndCorrect(){if(!soundOn)return;playTone(523,.1,'square',.2);setTimeout(()=>playTone(659,.1,'square',.2),120);setTimeout(()=>playTone(784,.25,'square',.2),240);}
+function sndWrong(){if(!soundOn)return;playTone(220,.08,'sawtooth',.25);setTimeout(()=>playTone(180,.2,'sawtooth',.2),100);}
+function sndClick(){if(!soundOn)return;playTone(880,.05,'square',.1);}
+function sndType(){if(!soundOn)return;playTone(440+Math.random()*200,.04,'square',.06);}
+function sndRoomUnlock(){if(!soundOn)return;[523,587,659,698,784].forEach((f,i)=>setTimeout(()=>playTone(f,.15,'square',.2),i*80));}
+function sndAlarm(){if(!soundOn)return;playTone(880,.1,'sawtooth',.3);setTimeout(()=>playTone(660,.1,'sawtooth',.3),200);setTimeout(()=>playTone(880,.1,'sawtooth',.3),400);}
+function sndWin(){if(!soundOn)return;const melody=[523,659,784,1047,784,1047,1319];melody.forEach((f,i)=>setTimeout(()=>playTone(f,.2,'square',.25),i*150));}
+function sndGameOver(){if(!soundOn)return;[440,370,311,262].forEach((f,i)=>setTimeout(()=>playTone(f,.3,'sawtooth',.3),i*200));}
+function sndBoot(){if(!soundOn)return;playNoise(.05,.1);setTimeout(()=>playTone(220,.08,'square',.15),60);setTimeout(()=>playTone(440,.06,'square',.15),140);}
+function sndTimer(){if(!soundOn)return;playTone(1760,.06,'square',.2);}
+function toggleSound(){soundOn=!soundOn;document.getElementById('sndBtn').textContent=soundOn?'🔊 SOUND ON':'🔇 SOUND OFF';}
+
+// ═══ STATE ═══
+let teamCount=1,teams=[],currentRoom=0;
+let timerInterval=null,timeLeft=25*60;
+let roomSolved=[false,false,false,false];
+let puzzleState={};
+
+// ═══ BOOT ═══
+let tcSelected=1;
+function selectTC(n){
+  tcSelected=n;sndClick();
+  document.querySelectorAll('.tc-btn').forEach((b,i)=>b.classList.toggle('sel',i===n-1));
+  renderTeamInputs();
+}
+function renderTeamInputs(){
+  const c=document.getElementById('teamInputs');c.innerHTML='';
+  for(let i=0;i<tcSelected;i++){
+    c.innerHTML+=`<input class="team-input" id="ti${i}" placeholder="> ${L.teamLabel}_${i+1}..." value="${L.teamDefault} ${i+1}" oninput="sndType()">`;
+  }
+}
+renderTeamInputs();
+const lines=document.querySelectorAll('.t-line');
+lines.forEach((l,i)=>{
+  setTimeout(()=>{l.classList.add('visible');sndBoot();
+    if(i===lines.length-1)setTimeout(()=>{document.getElementById('teamSetup').style.display='block';},400);
+  },i*500);
+});
+function launchGame(){
+  sndClick();teams=[];
+  for(let i=0;i<tcSelected;i++){
+    const name=document.getElementById(`ti${i}`)?.value.trim()||`${L.teamDefault} ${i+1}`;
+    teams.push({name,score:0});
+  }
+  ROOMS.forEach((room,ri)=>{
+    room.puzzles.forEach(p=>{puzzleState[p.id]={solved:false,attempts:0,maxAttempts:3};});
+  });
+  document.getElementById('bootScreen').style.display='none';
+  const gc=document.getElementById('gameContainer');gc.style.display='flex';
+  renderHud();buildAllPuzzles();goRoom(0);startTimer();document.getElementById("reshuffleBtn").style.display="inline-flex";
+  sndRoomUnlock();
+}
+
+// ═══ HUD ═══
+function renderHud(){
+  const ht=document.getElementById('hudTeams');
+  ht.innerHTML=teams.map((t,i)=>`<div class="hud-team active" id="hudT${i}">${t.name}: <span id="score${i}">${t.score}pts</span></div>`).join('');
+}
+
+// ═══ TIMER ═══
+let timerTick=0;
+function startTimer(){
+  timerInterval=setInterval(()=>{
+    timeLeft--;timerTick++;
+    const m=Math.floor(timeLeft/60).toString().padStart(2,'0');
+    const s=(timeLeft%60).toString().padStart(2,'0');
+    const el=document.getElementById('hudTimer');
+    el.textContent=`${m}:${s}`;
+    el.classList.toggle('danger',timeLeft<=120);
+    if(timeLeft<=120&&timerTick%2===0)sndTimer();
+    if(timeLeft<=0){clearInterval(timerInterval);sndGameOver();triggerGameOver();}
+  },1000);
+}
+
+// ═══ BUILD PUZZLES ═══
+function buildAllPuzzles(){
+  ROOMS.forEach((room,ri)=>{
+    buildProgress(ri);
+    const container=document.getElementById(`puzzles${ri}`);
+    container.innerHTML='';
+    room.puzzles.forEach((p,pi)=>{container.appendChild(buildPuzzle(p,ri,pi));});
+  });
+}
+function buildProgress(ri){
+  const el=document.getElementById(`prog${ri}`);
+  el.innerHTML=ROOMS[ri].puzzles.map((_,i)=>`<div class="prog-dot" id="progdot_${ri}_${i}"></div>`).join('')
+    +`<span class="prog-label">0 / ${ROOMS[ri].puzzles.length} ${L.solved}</span>`;
+}
+function buildPuzzle(p,ri,pi){
+  const card=document.createElement('div');
+  card.className=`puzzle-card ${p.theme}`;card.id=`card_${p.id}`;card.style.position='relative';
+  const aC={'blue':'rgba(0,212,255,0.15)','red-theme':'rgba(255,62,108,0.15)','purple-theme':'rgba(176,108,255,0.15)','green-theme':'rgba(0,255,157,0.15)'}[p.theme];
+  const aT={'blue':'#00d4ff','red-theme':'#ff3e6c','purple-theme':'#b06cff','green-theme':'#00ff9d'}[p.theme];
+  let html=`<div class="corner-deco tl"></div><div class="corner-deco tr"></div><div class="corner-deco bl"></div><div class="corner-deco br"></div>
+    <div class="puzzle-badge" style="background:${aC};color:${aT}">${p.badge}</div>
+    <div class="puzzle-q">${p.q}</div>`;
+  if(p.hint)html+=`<div class="puzzle-hint">${p.hint}</div>`;
+  html+=`<div class="attempts" id="att_${p.id}">${L.attempts}: ${['','',''].map(()=>'<span class="attempt-dot"></span>').join('')}</div>`;
+  if(p.type==='mc'){
+    html+=`<div class="mc-options">`;
+    ['A','B','C','D'].slice(0,p.opts.length).forEach((ltr,i)=>{
+      html+=`<button class="mc-opt" id="opt_${p.id}_${i}" onclick="handleMC('${p.id}',${i},${ri},${pi})"><span class="mc-key">${ltr}</span>${p.opts[i]}</button>`;
+    });
+    html+=`</div>`;
+  }else{
+    html+=`<div class="code-entry"><input class="code-input" id="code_${p.id}" placeholder="${L.enterCode}..." maxlength="20" onkeydown="if(event.key==='Enter')submitCode('${p.id}',${ri},${pi})"><button class="submit-code" onclick="submitCode('${p.id}',${ri},${pi})">⏎ ${L.submit}</button></div>`;
+  }
+  html+=`<div class="feedback" id="fb_${p.id}"></div><div class="solve-badge" id="sb_${p.id}">✅ ${L.moduleUnlocked}</div>`;
+  card.innerHTML=html;return card;
+}
+
+// ═══ ANSWER HANDLERS ═══
+function handleMC(pid,selected,ri,pi){
+  const state=puzzleState[pid];
+  if(state.solved||state.attempts>=state.maxAttempts)return;
+  const p=ROOMS[ri].puzzles[pi];const isCorrect=selected===p.correct;
+  state.attempts++;updateAttempts(pid,state.attempts);
+  const opts=p.opts.map((_,i)=>document.getElementById(`opt_${pid}_${i}`));
+  opts.forEach(b=>b.disabled=true);
+  opts[selected].classList.add(isCorrect?'correct':'wrong');
+  if(isCorrect){opts[p.correct].classList.add('correct');sndCorrect();onSolve(pid,ri,pi,p.feedback_ok);}
+  else{
+    sndWrong();showFeedback(pid,false,p.feedback_fail);sndAlarm();
+    const card=document.getElementById(`card_${pid}`);
+    card.classList.add('error-shake');
+    setTimeout(()=>card.classList.remove('error-shake'),500);
+    if(state.attempts<state.maxAttempts){setTimeout(()=>{opts.forEach(b=>b.disabled=false);opts[selected].classList.remove('wrong');},800);}
+    else{opts[p.correct].classList.add('correct');}
+  }
+}
+function submitCode(pid,ri,pi){
+  const state=puzzleState[pid];
+  if(state.solved||state.attempts>=state.maxAttempts)return;
+  const p=ROOMS[ri].puzzles[pi];
+  const inputEl=document.getElementById(`code_${pid}`);
+  const val=inputEl.value.trim().toUpperCase();
+  const isCorrect=val===p.code.toUpperCase();
+  state.attempts++;updateAttempts(pid,state.attempts);
+  if(isCorrect){inputEl.classList.add('correct');sndCorrect();onSolve(pid,ri,pi,p.feedback_ok);}
+  else{
+    inputEl.classList.add('wrong');sndWrong();sndAlarm();
+    showFeedback(pid,false,p.feedback_fail);
+    const card=document.getElementById(`card_${pid}`);
+    card.classList.add('error-shake');
+    setTimeout(()=>{card.classList.remove('error-shake');inputEl.classList.remove('wrong');inputEl.value='';},700);
+  }
+}
+function updateAttempts(pid,used){
+  const el=document.getElementById(`att_${pid}`);
+  const max=puzzleState[pid].maxAttempts;
+  let html=`${L.attempts}: `;
+  for(let i=0;i<max;i++)html+=`<span class="attempt-dot ${i<used?'used':''}"></span>`;
+  el.innerHTML=html;
+}
+function showFeedback(pid,ok,msg){
+  const fb=document.getElementById(`fb_${pid}`);
+  fb.textContent=msg;fb.className=`feedback show ${ok?'ok':'fail'}`;
+}
+function onSolve(pid,ri,pi,msg){
+  const state=puzzleState[pid];state.solved=true;
+  showFeedback(pid,true,msg);
+  document.getElementById(`sb_${pid}`).classList.add('show');
+  document.getElementById(`card_${pid}`).classList.add('solved');
+  const pts=Math.max(10,30-(state.attempts-1)*10);
+  teams.forEach((t,i)=>{t.score+=pts;document.getElementById(`score${i}`).textContent=t.score+'pts';});
+  const dot=document.getElementById(`progdot_${ri}_${pi}`);
+  dot.classList.remove('current');dot.classList.add('done');
+  updateRoomProgress(ri);
+}
+function updateRoomProgress(ri){
+  const room=ROOMS[ri];
+  const solved=room.puzzles.filter(p=>puzzleState[p.id]?.solved).length;
+  const total=room.puzzles.length;
+  const prog=document.getElementById(`prog${ri}`);
+  const label=prog.querySelector('.prog-label');
+  if(label)label.textContent=`${solved} / ${total} ${L.solved}`;
+  room.puzzles.forEach((p,i)=>{
+    const dot=document.getElementById(`progdot_${ri}_${i}`);
+    if(!puzzleState[p.id]?.solved&&dot&&!dot.classList.contains('done'))dot.classList.add('current');
+  });
+  if(solved===total){roomSolved[ri]=true;sndRoomUnlock();document.getElementById(`nav${ri}`).style.display='inline-flex';}
+}
+function goRoom(n){
+  document.querySelectorAll('.room').forEach((r,i)=>r.classList.toggle('active',i===n));
+  currentRoom=n;sndClick();
+  ROOMS[n].puzzles.forEach((p,i)=>{
+    if(!puzzleState[p.id]?.solved){
+      const dot=document.getElementById(`progdot_${n}_${i}`);
+      if(dot&&!dot.classList.contains('done'))dot.classList.add('current');return;
+    }
+  });
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ═══ RESHUFFLE ═══
+function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+function reshuffleAll(){
+  sndClick();
+  // Reset all puzzle state
+  ROOMS.forEach((room,ri)=>{
+    // Shuffle puzzles within each room
+    shuffle(room.puzzles);
+    room.puzzles.forEach((p,pi)=>{
+      // Shuffle MC options while keeping correct answer tracking
+      if(p.type==='mc'&&p.opts){
+        const pairs=p.opts.map((o,i)=>({o,isCorrect:i===p.correct}));
+        shuffle(pairs);
+        p.opts=pairs.map(x=>x.o);
+        p.correct=pairs.findIndex(x=>x.isCorrect);
+      }
+      puzzleState[p.id]={solved:false,attempts:0,maxAttempts:3};
+    });
+  });
+  roomSolved=[false,false,false,false];
+  // Animate flash
+  document.getElementById('gameContainer').classList.add('reshuffle-flash');
+  setTimeout(()=>document.getElementById('gameContainer').classList.remove('reshuffle-flash'),700);
+  // Rebuild all puzzles
+  buildAllPuzzles();
+  goRoom(0);
+  sndRoomUnlock();
+}
+
+function triggerWin(){
+  clearInterval(timerInterval);sndWin();
+  const elapsed=25*60-timeLeft;
+  const m=Math.floor(elapsed/60).toString().padStart(2,'0');
+  const s=(elapsed%60).toString().padStart(2,'0');
+  document.getElementById('winTime').textContent=`⏱ ${L.completedIn} ${m}:${s}`;
+  const ws=document.getElementById('winScores');
+  ws.innerHTML=teams.map(t=>`<div class="score-card"><div class="sc-name">${t.name}</div><div class="sc-score">${t.score} pts</div></div>`).join('');
+  document.getElementById('winScreen').classList.add('show');
+}
+function triggerGameOver(){
+  document.getElementById('gameOverScreen').classList.add('show');
+}
+
+</script>
+</body>
+</html>
